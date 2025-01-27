@@ -1,0 +1,6 @@
+# Distribution / packaging
+*.egg-info/
+
+# Jupyter Notebooks
+*.ipynb
+
