@@ -10,6 +10,25 @@ from tqdm.auto import tqdm
 device = torch.device("cuda") if torch.cuda.is_available() else torch.device("cpu")
 
 
+def ground_state(A, x):
+    def diff(k, Ak):
+        diff_k = Ak.unsqueeze(0) - torch.stack(
+            [
+                x[i, k] * torch.eye(Ak.shape[0], device=x.device)
+                for i in range(x.shape[0])
+            ]
+        )
+        return diff_k
+
+    H = 0.5 * sum(
+        [diff_k @ diff_k for k, Ak in enumerate(A) if (diff_k := diff(k, Ak)).any()]
+    )
+    _, eigenvectors = eigh(H)
+    phi0 = eigenvectors[:, :, 0]
+    phi0 = (torch.exp(-1j * torch.angle(phi0[:, 0])).unsqueeze(1) * phi0).unsqueeze(2)
+    return phi0
+
+
 class QuantumCognitionModel(Module):
     """
     A class to train a matrix configuration A on a data set X with Quantum Cognition
@@ -48,23 +67,7 @@ class QuantumCognitionModel(Module):
         # Make hermitian matrix from randomly initialized weights
         A = [(layer.weight + layer.weight.conj().T) / 2 for layer in self.B]
 
-        def diff(k, Ak):
-            diff_k = Ak.unsqueeze(0) - torch.stack(
-                [
-                    x[i, k] * torch.eye(self.N, device=x.device)
-                    for i in range(x.shape[0])
-                ]
-            )
-            return diff_k
-
-        H = 0.5 * sum(
-            [diff_k @ diff_k for k, Ak in enumerate(A) if (diff_k := diff(k, Ak)).any()]
-        )
-        _, eigenvectors = eigh(H)
-        phi0 = eigenvectors[:, :, 0]
-        phi0 = (torch.exp(-1j * torch.angle(phi0[:, 0])).unsqueeze(1) * phi0).unsqueeze(
-            2
-        )
+        phi0 = ground_state(A, x)
         phi0HAks = [phi0.transpose(1, 2).conj() @ Ak for Ak in A]
 
         pos = torch.stack([(phi0HAk @ phi0).squeeze() for phi0HAk in phi0HAks], dim=1)
