@@ -2,7 +2,12 @@ import torch
 from torch import Tensor
 from torch.nn import Module, ModuleList, Linear
 from torch.linalg import eigh
+from torch.utils.data import DataLoader
+from transformers import AdamW, get_scheduler
 from typing import Tuple
+from tqdm.auto import tqdm
+
+device = torch.device("cuda") if torch.cuda.is_available() else torch.device("cpu")
 
 
 class QuantumCognitionModel(Module):
@@ -73,3 +78,40 @@ class QuantumCognitionModel(Module):
         )
 
         return pos, wvar
+
+
+def train(model, X):
+    train_dataloader = DataLoader(
+        X,
+        shuffle=True,
+        batch_size=32,
+    )
+
+    optimizer = AdamW(model.parameters(), lr=1e-3)
+
+    num_epochs = 50
+    num_training_steps = num_epochs * len(train_dataloader)
+    lr_scheduler = get_scheduler(
+        "linear",
+        optimizer=optimizer,
+        num_warmup_steps=0,
+        num_training_steps=num_training_steps,
+    )
+    print(num_training_steps)
+
+    progress_bar = tqdm(range(num_training_steps))
+    model.train()
+    for _ in range(num_epochs):
+        for batch in train_dataloader:
+            batch = batch.to(device)
+            positions, _ = model(batch)
+            loss = torch.mean(torch.linalg.vector_norm(positions - batch, dim=1))
+            loss.backward()
+
+            optimizer.step()
+            lr_scheduler.step()
+            optimizer.zero_grad()
+            print(loss)
+            progress_bar.update(1)
+
+    return model
