@@ -4,7 +4,7 @@ from .model import get_eigenstates
 
 
 def quantum_metric(A, D, x):
-    N = A.shape[0]
+    N = A[0].shape[0]
     g = torch.zeros((x.shape[0], D, D))
     eigenstates, eigenvalues = get_eigenstates(A, x, return_ev=True)
     psi0 = eigenstates[0, :, :, :]

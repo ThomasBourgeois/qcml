@@ -73,15 +73,18 @@ class QuantumCognitionModel(Module):
             state positions and weighted variances
         """
         # Make hermitian matrix from randomly initialized weights
-        A = [(layer.weight + layer.weight.conj().T) / 2 for layer in self.B]
+        self.A = [(layer.weight + layer.weight.conj().T) / 2 for layer in self.B]
 
-        psi0 = get_eigenstates(A, x)[0, :, :, :]
-        psi0HAks = [psi0.transpose(1, 2).conj() @ Ak for Ak in A]
+        psi0 = get_eigenstates(self.A, x)[0, :, :, :]
+        psi0HAks = [psi0.transpose(1, 2).conj() @ Ak for Ak in self.A]
 
         pos = torch.stack([(psi0HAk @ psi0).squeeze() for psi0HAk in psi0HAks], dim=1)
         wvar = self.w * torch.sum(
             torch.stack(
-                [(psi0HAk @ Ak @ psi0).squeeze() for Ak, psi0HAk in zip(A, psi0HAks)],
+                [
+                    (psi0HAk @ Ak @ psi0).squeeze()
+                    for Ak, psi0HAk in zip(self.A, psi0HAks)
+                ],
                 dim=1,
             )
             - pos**2,
