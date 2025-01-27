@@ -1,5 +1,5 @@
 import torch
-
+from torch.linalg import eigh
 from .model import get_eigenstates
 
 
@@ -24,3 +24,13 @@ def quantum_metric(A, D, x):
                 )
             g[:, mu, nu] = 2 * sum(res)
     return g
+
+
+def intrinsic_dimension(model, X_A):
+    g_X_A = quantum_metric(model.A, X_A.shape[1], X_A)
+    eigenvalues, _ = eigh(g_X_A)
+    gaps = eigenvalues / eigenvalues.roll(1, 1)
+    gaps[:, 0] = -1
+    d = X_A.shape[1] - torch.argmax(gaps, dim=1)
+
+    return torch.mean(d, dtype=float)
