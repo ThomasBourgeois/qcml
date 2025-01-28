@@ -39,21 +39,21 @@ def quantum_metric(A: List[Tensor], D: int, x: Tensor) -> Tensor:
     return g
 
 
-def intrinsic_dimension(model: QuantumCognitionModel, X_A: Tensor) -> float:
+def intrinsic_dimension(model: QuantumCognitionModel, x: Tensor) -> float:
     """
-    Calculates intrinsic dimension of dataset X_A
+    Calculates intrinsic dimension of dataset x
 
     Args :
         model : Trained quantum cognition model
-        X_A : Point cloud. Projection of X on guessed manifold.
+        x : Batch points cloud. Projection of batch points on guessed manifold.
 
     Returns :
-        Average of intrinsic dimension calculated on each point
+        dimension calculated on each point
     """
-    g_X_A = quantum_metric(model.A, X_A.shape[1], X_A)
-    eigenvalues, _ = eigh(g_X_A)
+    g_x = quantum_metric(model.A, x.shape[1], x)
+    eigenvalues, _ = eigh(g_x)
     gaps = eigenvalues / eigenvalues.roll(1, 1)
     gaps[:, 0] = -1
-    d = X_A.shape[1] - torch.argmax(gaps, dim=1)
+    d = x.shape[1] - torch.argmax(gaps, dim=1)
 
-    return torch.mean(d, dtype=float).item()
+    return d
