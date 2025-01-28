@@ -4,27 +4,44 @@ from torch.nn import Module, ModuleList, Linear
 from torch.linalg import eigh
 from torch.utils.data import DataLoader
 from transformers import AdamW, get_scheduler
-from typing import Tuple
+from typing import Tuple, List, Union
 from tqdm.auto import tqdm
 
 device = torch.device("cuda") if torch.cuda.is_available() else torch.device("cpu")
 
 
-def get_eigenstates(A, x, return_ev=False):
-    def diff(k, Ak):
-        diff_k = Ak.unsqueeze(0) - torch.stack(
-            [
-                x[i, k] * torch.eye(Ak.shape[0], device=x.device)
-                for i in range(x.shape[0])
-            ]
-        )
-        return diff_k
+def get_eigenstates(
+    A: List[Tensor], x: Tensor, return_ev: bool = False
+) -> Union[Tensor, List[Tensor]]:
+    """
+    Calculation of eigenstates and eigenvectors of error Hamiltonian H
+
+    Args:
+        A : Matrix configuration
+        x : Batch of points
+        return_ev : Should return eigenvalues ?
+
+    Returns:
+        Eigenstates for each data point (shape : batch * N * N, if N * N is the shape
+        of A) and optionnaly the associated eigenvalues (shape : batch * N)
+    """
 
     H = 0.5 * sum(
-        [diff_k @ diff_k for k, Ak in enumerate(A) if (diff_k := diff(k, Ak)).any()]
+        [
+            diff_k @ diff_k
+            for k, Ak in enumerate(A)
+            if (
+                diff_k := Ak.unsqueeze(0)
+                - torch.stack(
+                    [
+                        x[i, k] * torch.eye(Ak.shape[0], device=x.device)
+                        for i in range(x.shape[0])
+                    ]
+                )
+            ).any()
+        ]
     )
     eigenvalues, eigenstates = eigh(H)
-    # psi0 = eigenstates[:, :, 0]
     eigenvalues = eigenvalues.transpose(0, 1)
     eigenstates = (
         (torch.exp(-1j * torch.angle(eigenstates[:, 0, :])).unsqueeze(1) * eigenstates)
@@ -43,7 +60,7 @@ class QuantumCognitionModel(Module):
     Machine Learning
 
     Attributes:
-        A : matrix configuration
+        A : Matrix configuration
         w : Quantum fluctuation weight
 
     """
@@ -94,7 +111,17 @@ class QuantumCognitionModel(Module):
         return pos, wvar
 
 
-def train(model, X):
+def train(model: QuantumCognitionModel, X: Tensor) -> QuantumCognitionModel:
+    """
+    Train model on dataset X
+
+    Args :
+        model : Quantum Cognition Model
+        X : Dataset of points of shape batch * D, with D the dimension of the dataset
+
+    Returns :
+        Trained model
+    """
     train_dataloader = DataLoader(
         X,
         shuffle=True,

@@ -1,8 +1,15 @@
+from torch import Tensor
 import plotly.graph_objs as go
 
 
-def plot_sphere(X, X_A):
+def plot_sphere(X: Tensor, X_A: Tensor):
+    """
+    Plot hyperspheres traces
 
+    Args :
+        X : Initial (raw) hypersphere X
+        X : Guessed (model) hypersphere X_A
+    """
     fig = go.Figure()
     fig.add_trace(
         go.Scatter3d(
