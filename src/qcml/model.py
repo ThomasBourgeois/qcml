@@ -4,7 +4,7 @@ from torch.nn import Module, ModuleList, Linear
 from torch.linalg import eigh
 from torch.utils.data import DataLoader
 from transformers import AdamW, get_scheduler
-from typing import Tuple, List, Union
+from typing import Tuple, List, Dict, Union
 from tqdm.auto import tqdm
 
 device = torch.device("cuda") if torch.cuda.is_available() else torch.device("cpu")
@@ -22,15 +22,13 @@ def get_eigenstates(
         return_ev : Should return eigenvalues ?
 
     Returns:
-        Eigenstates for each data point (shape : batch * N * N, if N * N is the shape
-        of A) and optionnaly the associated eigenvalues (shape : batch * N)
+        Eigenstates for each data point (shape : N * batch * N * 1, if N * N is the
+        shape of A) and optionnaly the associated eigenvalues (shape : N * batch)
     """
 
     H = 0.5 * sum(
         [
-            diff_k @ diff_k
-            for k, Ak in enumerate(A)
-            if (
+            (
                 diff_k := Ak.unsqueeze(0)
                 - torch.stack(
                     [
@@ -38,7 +36,9 @@ def get_eigenstates(
                         for i in range(x.shape[0])
                     ]
                 )
-            ).any()
+            )
+            @ diff_k
+            for k, Ak in enumerate(A)
         ]
     )
     eigenvalues, eigenstates = eigh(H)
@@ -111,7 +111,9 @@ class QuantumCognitionModel(Module):
         return pos, wvar
 
 
-def train(model: QuantumCognitionModel, X: Tensor) -> QuantumCognitionModel:
+def train(
+    model: QuantumCognitionModel, X: Tensor, config: Dict
+) -> QuantumCognitionModel:
     """
     Train model on dataset X
 
@@ -122,16 +124,16 @@ def train(model: QuantumCognitionModel, X: Tensor) -> QuantumCognitionModel:
     Returns :
         Trained model
     """
+    lr, n_epochs = config["lr"], config["n_epochs"]
     train_dataloader = DataLoader(
         X,
         shuffle=True,
         batch_size=32,
     )
 
-    optimizer = AdamW(model.parameters(), lr=1e-3)
+    optimizer = AdamW(model.parameters(), lr=lr)
 
-    num_epochs = 50
-    num_training_steps = num_epochs * len(train_dataloader)
+    num_training_steps = n_epochs * len(train_dataloader)
     lr_scheduler = get_scheduler(
         "linear",
         optimizer=optimizer,
@@ -142,7 +144,7 @@ def train(model: QuantumCognitionModel, X: Tensor) -> QuantumCognitionModel:
 
     progress_bar = tqdm(range(num_training_steps))
     model.train()
-    for _ in range(num_epochs):
+    for _ in range(n_epochs):
         for batch in train_dataloader:
             batch = batch.to(device)
             positions, _ = model(batch)

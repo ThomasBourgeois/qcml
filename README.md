@@ -2,6 +2,15 @@
 QCML is a repo to perform Quantum Cognition Machine Learning
 It is an unnoficial implementation of [[1]](#1)[https://arxiv.org/abs/2409.12805]
 
+## Dependencies
+- Pytorch
+- transformers
+- scikit-dimension
+- plotly
+
+## Results
+Current results are presented as a jupyter notebook in nbs/experiments.ipynb
+
 ## References
 <a id="1">[1]</a> 
 Luca Candelori, Alexander G. Abanov, Jeffrey Berger, Cameron J. Hogan, Vahagn Kirakosyan, Kharen Musaelian, Ryan Samson, James E. T. Smith, Dario Villani, Martin T. Wells, Mengjia Xu (2024). 

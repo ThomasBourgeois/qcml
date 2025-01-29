@@ -1,7 +1,7 @@
 import torch
 from torch import Tensor
 from torch.linalg import eigh
-from typing import List
+from typing import List, Dict
 from .model import get_eigenstates, QuantumCognitionModel
 
 
@@ -39,7 +39,9 @@ def quantum_metric(A: List[Tensor], D: int, x: Tensor) -> Tensor:
     return g
 
 
-def intrinsic_dimension(model: QuantumCognitionModel, x: Tensor) -> float:
+def intrinsic_dimension(
+    model: QuantumCognitionModel, x: Tensor, config: Dict = None
+) -> float:
     """
     Calculates intrinsic dimension of dataset x
 
@@ -50,9 +52,14 @@ def intrinsic_dimension(model: QuantumCognitionModel, x: Tensor) -> float:
     Returns :
         dimension calculated on each point
     """
+    if config is None:
+        config = {"biggest_gap_diff": False}
     g_x = quantum_metric(model.A, x.shape[1], x)
     eigenvalues, _ = eigh(g_x)
-    gaps = eigenvalues / eigenvalues.roll(1, 1)
+    if config["biggest_gap_diff"]:
+        gaps = eigenvalues - eigenvalues.roll(1, 1)
+    else:
+        gaps = eigenvalues / eigenvalues.roll(1, 1)
     gaps[:, 0] = -1
     d = x.shape[1] - torch.argmax(gaps, dim=1)
 
